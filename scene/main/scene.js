@@ -1,97 +1,89 @@
-var Scene = function(game) {
-    var s = {
-        game: game,
+class ScenePlay extends GuaScene {
+    constructor(game, level) {
+        super(game)
+        this.paddle = Paddle(game)
+        this.ball = Ball(game)
+        this.score = 0
+        this.level = level
+        this.blocks = loadLevel(game, level)
+
+        this.__initEvents()
     }
-    var paddle = Paddle(game)
-    var ball = Ball(game)
 
-    var score = 0
+    __initEvents(){
+        var s = this
+        s.game.registerAction('a', function(){
+            s.paddle.moveLeft()
+        })
 
-    var blocks = loadLevel(game, 1)
+        s.game.registerAction('d', function(){
+            s.paddle.moveRight()
+        })
 
-    game.registerAction('a', function() {
-        paddle.move_left()
-    })
-    game.registerAction('d', function() {
-        paddle.move_right()
-    })
-    game.registerAction('f', function() {
-        ball.fire()
-    })
+        s.game.registerAction('f', function(){
+            s.ball.fire()
+        })
+    }
 
-    s.draw = function() {
-        // console.log('bug2');
-        game.drawImage(paddle)
-        game.drawImage(ball)
-        // draw block
-        for (var i = 0; i < blocks.length; i++) {
-            var block = blocks[i]
+    static new(game, level) {
+        var i = new this(game, level)
+        return i
+    }
+
+    draw() {
+        var s = this
+        s.game.drawImage(s.paddle)
+        s.game.drawImage(s.ball)
+
+        for (var i = 0; i < s.blocks.length; i++) {
+            var block = s.blocks[i]
             if (block.alive) {
-                game.drawImage(block)
+                s.game.drawImage(block)
             }
         }
 
-        // draw labels
-        game.context.fillText('分数：' + score, 10, 290)
+        s.game.context.fillText('分数: ' + s.score , 10, 390)
+        this.game.context.fillText('第' + s.level + '关', 100, 390)
     }
 
-    s.update = function() {
+    update() {
         if (window.paused) {
             return
         }
-        ball.move()
-        // 判断游戏结束
-        if (ball.y > paddle.y) {
-            // 跳转至游戏结束的场景
-            var end = SceneEnd.new(game)
-            game.replaceScene(end)
-            // return
+
+        var s = this
+
+        s.ball.move()
+
+        if (s.paddle.collide(s.ball)) {
+            s.ball.rebound()
         }
-        // 判断球和挡板相撞相撞
-        if (paddle.collide(ball)) {
-            // 使用反弹函数
-            ball.rebound()
+
+        if (s.ball.y > s.paddle.y) {
+            var end = SceneEnd.new(s.game)
+            s.game.replaceScene(end)
         }
-        // 判断球和砖块相撞
-        for (var i = 0; i < blocks.length; i++) {
-            var block = blocks[i]
-            if (block.collide(ball)) {
+
+        //
+        if (s.score == (s.blocks.length * 100)) {
+            var level = s.level + 1
+            if (level == 4) {
+                var done = SceneDone.new(s.game)
+                s.game.replaceScene(done)
+            } else {
+                var next = ScenePlay.new(s.game, level)
+                s.game.replaceScene(next)
+            }
+        }
+
+        //
+        for (var i = 0; i < s.blocks.length; i++) {
+            var block = s.blocks[i]
+            if (block.collide(s.ball)) {
                 block.kill()
-                ball.rebound()
-                // 更新分数
-                score += 100
+                s.ball.rebound()
+                s.score += 100
             }
         }
     }
-
-    // mouse event
-    var enableDrag = false
-    game.canvas.addEventListener('mousedown', function(event) {
-        var x = event.offsetX
-        var y = event.offsetY
-        if (ball.hasPoint(x, y)) {
-            // 设置拖拽状态
-            enableDrag = true
-        }
-    })
-
-    game.canvas.addEventListener('mousemove', function(event) {
-        var x = event.offsetX
-        var y = event.offsetY
-        if (enableDrag) {
-            ball.x = x
-            ball.y = y
-        }
-    })
-
-    game.canvas.addEventListener('mouseup', function(event) {
-        var x = event.offsetX
-        var y = event.offsetY
-        if (ball.hasPoint(x, y)) {
-            // 设置拖拽状态
-            enableDrag = false
-        }
-    })
-
-    return s
 }
